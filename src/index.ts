@@ -32,8 +32,25 @@ async function main(): Promise<void> {
   app.use('/conversations', conversationRoutes);
   app.use('/channels', channelRoutes);
 
+  // #region agent log - Catch-all to log unhandled requests
+  app.use('*', (req, res, next) => {
+    console.log(`[DEBUG-E] Unhandled route: ${req.method} ${req.originalUrl}`);
+    next();
+  });
+  // #endregion
+
   // Create HTTP server
   const httpServer = http.createServer(app);
+
+  // #region agent log - Log ALL HTTP requests to see what paths are being hit
+  httpServer.on('request', (req, res) => {
+    console.log(`[DEBUG-A] HTTP Request: ${req.method} ${req.url} | Headers: upgrade=${req.headers.upgrade}, connection=${req.headers.connection}`);
+  });
+  
+  httpServer.on('upgrade', (req, socket, head) => {
+    console.log(`[DEBUG-B] HTTP Upgrade: ${req.url} | upgrade=${req.headers.upgrade}`);
+  });
+  // #endregion
 
   // Setup Socket.IO
   const io = new SocketIOServer(httpServer, {
@@ -41,7 +58,20 @@ async function main(): Promise<void> {
       origin: '*',
       methods: ['GET', 'POST'],
     },
+    // #region agent log - Using explicit path for clarity (this is the default)
+    path: '/socket.io/',
+    // #endregion
   });
+
+  // #region agent log - Log Socket.IO engine events
+  io.engine.on('connection_error', (err: any) => {
+    console.log(`[DEBUG-C] Socket.IO Engine Error: code=${err.code}, message=${err.message}, context=${JSON.stringify(err.context)}`);
+  });
+  
+  io.engine.on('initial_headers', (headers: any, req: any) => {
+    console.log(`[DEBUG-D] Socket.IO Initial Headers for: ${req.url}`);
+  });
+  // #endregion
 
   // Setup WebSocket handlers
   setupSocketServer(io);
