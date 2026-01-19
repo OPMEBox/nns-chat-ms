@@ -1,22 +1,22 @@
 version: '3.8'
 
 services:
-  chat-api:
-    build: .
-    ports:
-      - "3001:3001"
-    environment:
-      - NODE_ENV=development
-      - CHAT_PORT=3001
-      - MONGODB_URI=mongodb://mongo:27017/chat
-      - CHAT_JWT_SECRET=your-chat-secret-key-change-in-production
-      - CHAT_JWT_EXPIRES_IN=24h
-      - INTERNAL_API_KEY=shared-secret-for-internal-calls
-      - MAIN_API_URL=http://host.docker.internal:3333
-    depends_on:
-      - mongo
-    networks:
-      - chat-network
+  # chat-api:
+  #   build: .
+  #   ports:
+  #     - "3001:3001"
+  #   environment:
+  #     - NODE_ENV=development
+  #     - CHAT_PORT=3001
+  #     - MONGODB_URI=mongodb://mongo:27017/chat
+  #     - CHAT_JWT_SECRET=your-chat-secret-key-change-in-production
+  #     - CHAT_JWT_EXPIRES_IN=24h
+  #     - INTERNAL_API_KEY=shared-secret-for-internal-calls
+  #     - MAIN_API_URL=http://host.docker.internal:3333
+  #   depends_on:
+  #     - mongo
+  #   networks:
+  #     - chat-network
 
   mongo:
     image: mongo:7
