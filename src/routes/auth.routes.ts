@@ -8,7 +8,6 @@ export const authRoutes = Router();
 // Internal API key middleware for Main API communication
 function validateInternalApiKey(req: Request, res: Response, next: () => void): void {
   const apiKey = req.headers['x-internal-api-key'] as string;
-  console.log('apiKey ====> ', apiKey);
   if (!apiKey || apiKey !== env.internalApiKey) {
     res.status(401).json({ error: 'Invalid internal API key' });
     return;
@@ -32,6 +31,9 @@ interface GenerateTokenBody {
 authRoutes.post('/create/token', validateInternalApiKey, (req: Request, res: Response) => {
   try {
     const {token} = req.body;
+    console.log('token ====> ', token);
+    console.log('process.env.MAIN_API_JWT_SECRET ====> ', process.env.MAIN_API_JWT_SECRET);
+    console.log('req.headers ====> ', req.headers);
 
     const decoded = jwt.verify(token, process.env.MAIN_API_JWT_SECRET as string);
     if (!decoded) {
