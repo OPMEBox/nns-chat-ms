@@ -14,6 +14,16 @@ export interface IChannelRepository {
   findOrCreate(input: CreateChannelInput): Promise<ChannelWithId>;
 
   /**
+   * Find or create a channel for a specific auction bid
+   * Uses auctionBidId as channel _id and associates it with the supplier's legal entity
+   */
+  findOrCreateBidChannel(
+    auctionBidId: string,
+    legalEntityId: string,
+    legalEntityName: string
+  ): Promise<ChannelWithId>;
+
+  /**
    * Find a channel by ID
    */
   findById(id: string): Promise<ChannelWithId | null>;
@@ -22,6 +32,11 @@ export interface IChannelRepository {
    * Find a channel by legal entity ID
    */
   findByLegalEntityId(legalEntityId: string): Promise<ChannelWithId | null>;
+
+  /**
+   * Find all channels for a legal entity ID
+   */
+  findManyByLegalEntityId(legalEntityId: string): Promise<ChannelWithId[]>;
 
   /**
    * Find channels by multiple legal entity IDs

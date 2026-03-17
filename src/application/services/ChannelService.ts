@@ -38,6 +38,30 @@ export class ChannelService {
       legalEntityName,
     });
   }
+
+  /**
+   * Get or create a channel for a specific auction bid.
+   * This is used by the main API via an internal endpoint, so permission
+   * checks are performed on the caller side.
+   */
+  async getOrCreateBidChannel(
+    auctionBidId: string,
+    legalEntityId: string,
+    legalEntityName: string,
+  ): Promise<ChannelWithId> {
+    return this.channelRepository.findOrCreateBidChannel(
+      auctionBidId,
+      legalEntityId,
+      legalEntityName,
+    );
+  }
+
+  /**
+   * Get all channels for a specific legal entity (used by Main API via internal endpoint)
+   */
+  async getChannelsByLegalEntity(legalEntityId: string): Promise<ChannelWithId[]> {
+    return this.channelRepository.findManyByLegalEntityId(legalEntityId);
+  }
   /**
    * Get or create a channel for a legal entity
    * Only ADMINs or users belonging to the legal entity can access

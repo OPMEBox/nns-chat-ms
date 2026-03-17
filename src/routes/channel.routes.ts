@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { ChannelUser, ChatTokenPayload, chatTokenService, ChatUser } from '../application/auth/ChatTokenService';
+import { ChannelUser, ChatTokenPayload, chatTokenService, ChatUser, LegalEntityPermission } from '../application/auth/ChatTokenService';
 import { channelService, messageService } from '../infrastructure/websocket/SocketServer';
 import { env } from '../config/env';
 
@@ -31,7 +31,7 @@ function authenticateChatToken(req: Request, res: Response, next: () => void): v
     res.status(401).json({ error: 'No token provided' });
     return;
   }
-
+  
   const user = chatTokenService.verifyToken(token);
   if (!user) {
     res.status(401).json({ error: 'Invalid or expired token' });
@@ -50,15 +50,24 @@ function authenticatToConnect(req: Request, res: Response, next: () => void): vo
     res.status(401).json({ error: 'No token provided' });
     return;
   }
-  const decoded = chatTokenService.decodeToken(token as string, process.env.MAIN_API_JWT_SECRET);
+  const decoded = chatTokenService.decodeToken(token as string, process.env.MAIN_API_JWT_SECRET) as Record<string, unknown> & { userId: string; username?: string; roles?: string[]; legalEntities?: string[] };
   if (!decoded) {
     res.status(401).json({ error: 'Invalid or expired token' });
     return;
   }
-  const channelUser = {
+  const roleIds = decoded.roles ?? [];
+  const legalEntityIds = decoded.legalEntities ?? [];
+  const legalEntities: LegalEntityPermission[] = legalEntityIds.map((id: string) => ({
+    id,
+    canRead: true,
+    canWrite: true,
+  }));
+  const channelUser: ChannelUser = {
     userId: decoded.userId,
     username: decoded.username,
     channelId: req.params.channelId,
+    roles: Array.isArray(roleIds) ? roleIds : [],
+    legalEntities,
   };
   (req as Request & { channelUser: ChannelUser }).channelUser = channelUser;
   next();
@@ -70,6 +79,61 @@ channelRoutes.get('/connect/:channelId', authenticatToConnect, async (req: Reque
   const token = chatTokenService.generateTokenForConnect(channelUser);
   res.json({ token });
 });
+
+/**
+ * POST /channels/internal/bid
+ * Internal endpoint for Main API to get or create a channel for an auction bid
+ * Authenticated via X-Internal-API-Key header
+ */
+channelRoutes.post(
+  '/internal/bid',
+  authenticateInternalApiKey,
+  async (req: Request, res: Response) => {
+    try {
+      const { auctionBidId, legalEntityId, legalEntityName } = req.body as {
+        auctionBidId?: string;
+        legalEntityId?: string;
+        legalEntityName?: string;
+      };
+
+      if (!auctionBidId || !legalEntityId) {
+        res.status(400).json({ error: 'auctionBidId and legalEntityId are required' });
+        return;
+      }
+
+      const channel = await channelService.getOrCreateBidChannel(
+        auctionBidId,
+        legalEntityId,
+        legalEntityName || 'Unknown',
+      );
+
+      res.json({ channel, channelId: channel._id });
+    } catch (error: unknown) {
+      console.error('Error getting/creating bid channel:', error);
+      res.status(500).json({ error: 'Failed to get bid channel' });
+    }
+  }
+);
+
+/**
+ * GET /channels/internal/legal-entity/:legalEntityId
+ * Internal endpoint for Main API to list channels for a legal entity
+ * Authenticated via X-Internal-API-Key header
+ */
+channelRoutes.get(
+  '/internal/legal-entity/:legalEntityId',
+  authenticateInternalApiKey,
+  async (req: Request, res: Response) => {
+    try {
+      const { legalEntityId } = req.params;
+      const channels = await channelService.getChannelsByLegalEntity(legalEntityId);
+      res.json({ channels });
+    } catch (error: unknown) {
+      console.error('Error listing channels by legal entity (internal):', error);
+      res.status(500).json({ error: 'Failed to list channels' });
+    }
+  }
+);
 
 /**
  * GET /channels

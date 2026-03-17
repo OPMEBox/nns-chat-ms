@@ -8,6 +8,7 @@ import { MessageService } from '../../application/services/MessageService';
 import { ConversationService } from '../../application/services/ConversationService';
 import { ChannelService } from '../../application/services/ChannelService';
 import { chatTokenService } from '../../application/auth/ChatTokenService';
+import { notifyMonolithChatMessage, notifyMonolithChatMessageToAdmins } from '../http/notifyMonolith';
 
 // Initialize repositories
 const messageRepository = new MongoMessageRepository();
@@ -149,13 +150,34 @@ export function setupSocketServer(io: SocketIOServer): void {
           // }
 
           message = await messageService.sendMessage({
-            senderId: user.userId,
+            senderId: user.userId!,
             senderName: user.username || user.userId,
             content: payload.content,
             channelId: payload.targetId,
           });
 
           roomName = `channel:${payload.targetId}`;
+
+          // Notify legal entity when sender is external (e.g. Admin); notify admins when sender is supplier
+          if (channel.legalEntityId) {
+            const isAdmin = user.roles?.includes('ADMIN');
+            const belongsToLegalEntity = user.legalEntities?.some((le) => le.id === channel.legalEntityId);
+            const isExternalSender = isAdmin || !belongsToLegalEntity;
+            const payloadNotify = {
+              channelId: payload.targetId,
+              legalEntityId: channel.legalEntityId,
+              senderId: user.userId!,
+              senderName: user.username || undefined,
+              messageId: message._id != null ? String(message._id) : undefined,
+              contentPreview: payload.content,
+              createdAt: message.createdAt instanceof Date ? message.createdAt.toISOString() : undefined,
+            };
+            if (isExternalSender) {
+              notifyMonolithChatMessage(payloadNotify).catch(() => {});
+            } else {
+              notifyMonolithChatMessageToAdmins(payloadNotify).catch(() => {});
+            }
+          }
         } else {
           console.log('Invalid target type');
           socket.emit('error', { code: ErrorCodes.INVALID_PAYLOAD, message: 'Invalid target type' });

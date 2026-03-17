@@ -24,7 +24,7 @@ export function createChannel(input: CreateChannelInput): Channel {
   const now = new Date();
 
   return {
-    _id: input.legalEntityId || randomUUID(),
+    _id: input._id ?? input.legalEntityId ?? randomUUID(),
     legalEntityId: input.legalEntityId,
     legalEntityName: input.legalEntityName,
     createdAt: now,

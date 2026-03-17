@@ -1,14 +1,14 @@
 import { Socket } from 'socket.io';
 import { ChannelUser, chatTokenService, ChatUser } from '../../application/auth/ChatTokenService';
 
-// Socket data interface
+// Socket data interface - user has roles and legalEntities from connect token
 interface ChatSocketData {
   user?: ChatUser;
 }
 
 export interface AuthenticatedSocket extends Socket {
   data: ChatSocketData & {
-    user: ChannelUser;
+    user: ChatUser;
   };
 }
 

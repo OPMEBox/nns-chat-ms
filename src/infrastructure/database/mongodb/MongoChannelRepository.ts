@@ -23,7 +23,8 @@ export class MongoChannelRepository implements IChannelRepository {
 
   async findOrCreate(input: CreateChannelInput): Promise<ChannelWithId> {
     // Try to find existing channel
-    const existing = await this.findByLegalEntityId(input.legalEntityId);
+    const idToFind = input._id ?? input.legalEntityId;
+    const existing = await this.findById(idToFind);
     if (existing) {
       return existing;
     }
@@ -51,6 +52,15 @@ export class MongoChannelRepository implements IChannelRepository {
   async findByLegalEntityId(legalEntityId: string): Promise<ChannelWithId | null> {
     const channel = await this.collection.findOne({ legalEntityId });
     return channel as ChannelWithId | null;
+  }
+
+  async findManyByLegalEntityId(legalEntityId: string): Promise<ChannelWithId[]> {
+    const channels = await this.collection
+      .find({ legalEntityId })
+      .sort({ updatedAt: -1 })
+      .toArray();
+
+    return channels as ChannelWithId[];
   }
 
   async findByLegalEntityIds(legalEntityIds: string[]): Promise<ChannelWithId[]> {
@@ -81,5 +91,34 @@ export class MongoChannelRepository implements IChannelRepository {
         } 
       }
     );
+  }
+
+  async findOrCreateBidChannel(
+    auctionBidId: string,
+    legalEntityId: string,
+    legalEntityName: string
+  ): Promise<ChannelWithId> {
+    // Channel id is the auctionBidId
+    const existing = await this.findById(auctionBidId);
+    if (existing) {
+      return existing;
+    }
+
+    try {
+      return await this.create({
+        _id: auctionBidId,
+        legalEntityId,
+        legalEntityName,
+      });
+    } catch (error: unknown) {
+      // Handle race condition where another request created it concurrently
+      if (error && typeof error === 'object' && 'code' in error && (error as any).code === 11000) {
+        const found = await this.findById(auctionBidId);
+        if (found) {
+          return found;
+        }
+      }
+      throw error;
+    }
   }
 }

@@ -13,12 +13,16 @@ export interface ChatUser {
   username?: string;
   roles: string[];
   legalEntities: LegalEntityPermission[];
+  userId?: string;
+  channelId?: string;
 }
 
 export interface ChannelUser {
   userId: string;
   username?: string;
   channelId: string;
+  roles: string[];
+  legalEntities: LegalEntityPermission[];
 }
 
 export interface ChatTokenPayload extends ChatUser {
@@ -42,6 +46,8 @@ export interface GenerateTokenForConnectInput {
   userId: string;
   username?: string;
   channelId: string;
+  roles: string[];
+  legalEntities: LegalEntityPermission[];
 }
 
 export class ChatTokenService {
@@ -75,6 +81,8 @@ export class ChatTokenService {
       userId: input.userId,
       username: input.username,
       channelId: input.channelId,
+      roles: input.roles,
+      legalEntities: input.legalEntities,
     };
 
     return jwt.sign(payload, this.jwtSecret, {
@@ -94,9 +102,12 @@ export class ChatTokenService {
     try {
       const decoded = this.decodeToken(token);
       return {
+        chatUserId: decoded.userId,
         userId: decoded.userId,
         username: decoded.username,
         channelId: decoded.channelId,
+        roles: decoded.roles ?? [],
+        legalEntities: decoded.legalEntities ?? [],
       };
     } catch {
       return null;
